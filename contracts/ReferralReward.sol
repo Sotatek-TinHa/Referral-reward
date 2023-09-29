@@ -20,6 +20,7 @@ import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "./interfaces/IAuthorization.sol";
 
 error ZeroNumber();
+error AuthorizeFailed();
 error BalanceInsufficient();
 error MaxWithdrawBalanceExceeded(uint256 expected, uint256 actual);
 error WithdrawFailed();
@@ -34,6 +35,8 @@ contract ReferralReward is Ownable, AccessControl, Pausable, ReentrancyGuard {
   IAuthorization public AUTHORIZATION_CONTRACT;
 
   struct WithdrawalParams {
+    address signer;
+    bytes32 messageHash;
     uint256 availableBalance;
     uint256 withdrawAmount;
     uint128 requestId;
@@ -64,27 +67,22 @@ contract ReferralReward is Ownable, AccessControl, Pausable, ReentrancyGuard {
         params.withdrawAmount
       );
     }
-
-    // create signature
-    bytes32 message = keccak256(
-      abi.encodePacked(
-        _msgSender(),
-        "withdraw",
-        params.availableBalance,
-        params.withdrawAmount,
-        params.requestId
-      )
-    );
     
     // authorize request
-    AUTHORIZATION_CONTRACT.authorize(
-      message,
+    bool auth = AUTHORIZATION_CONTRACT.authorize(
+      params.signer,
+      params.messageHash,
       params.signature
     );
+
+    if (!auth) {
+      revert AuthorizeFailed();
+    }
 
     if (address(this).balance < params.withdrawAmount) {
       revert BalanceInsufficient();
     }
+    
     (bool success, ) = payable(_msgSender()).call{
       value: params.withdrawAmount
     }("");
@@ -98,6 +96,23 @@ contract ReferralReward is Ownable, AccessControl, Pausable, ReentrancyGuard {
       params.withdrawAmount
     );
   }
+
+  function createMessageHash(
+        string memory _message,
+        uint availableBalance,
+        uint withdrawAmount,
+        uint requestId
+    ) public view returns (bytes32) {
+      return keccak256(
+        abi.encodePacked(
+          _msgSender(),
+          _message,
+          availableBalance,
+          withdrawAmount,
+          requestId
+        )
+      );
+    }
 
   function pause() external onlyOwner whenNotPaused {
     _pause();

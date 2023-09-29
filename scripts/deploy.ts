@@ -7,7 +7,7 @@ async function main() {
 
   const ReferralReward = await ethers.deployContract('ReferralReward', [AuthorizationAddress])
   await ReferralReward.waitForDeployment();
-  const ReferralRewardAddress = await Authorization.getAddress()
+  const ReferralRewardAddress = await ReferralReward.getAddress()
 
   console.log(
     `Contract referral reward: ${ReferralRewardAddress}`

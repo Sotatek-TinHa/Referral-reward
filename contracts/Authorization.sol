@@ -15,11 +15,11 @@ pragma solidity ^0.8.0;
 error InvalidSignatureLength();
 
 contract Authorization {
-    function authorize(bytes32 _messageHash, bytes memory _signature) external pure returns(address) {
+    function authorize(address signer, bytes32 _messageHash, bytes memory _signature) external pure returns(bool) {
         bytes32 signedMessageHash = keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", _messageHash));
 
         (bytes32 r, bytes32 s, uint8 v) = _splitSig(_signature);
-        return ecrecover(signedMessageHash, v, r, s);
+        return ecrecover(signedMessageHash, v, r, s) == signer;
 
     }
 
